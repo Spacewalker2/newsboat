@@ -5,12 +5,10 @@ extern crate natord;
 extern crate rand;
 extern crate regex;
 extern crate std;
-extern crate unicode_segmentation;
 extern crate unicode_width;
 extern crate url;
 
 use self::regex::Regex;
-use self::unicode_segmentation::UnicodeSegmentation;
 use self::unicode_width::{UnicodeWidthChar, UnicodeWidthStr};
 use self::url::percent_encoding::*;
 use self::url::Url;
@@ -231,7 +229,7 @@ pub fn trim(rs_str: String) -> String {
 
 pub fn trim_end(rs_str: String) -> String {
     let x: &[_] = &['\n', '\r'];
-    rs_str.trim_right_matches(x).to_string()
+    rs_str.trim_end_matches(x).to_string()
 }
 
 pub fn quote(input: String) -> String {
@@ -288,19 +286,41 @@ pub fn strwidth(rs_str: &str) -> usize {
     UnicodeWidthStr::width(rs_str)
 }
 
+/// Returns the width of `rs_str` when displayed on screen.
+///
+/// STFL tags (e.g. `<b>`, `<foobar>`, `</>`) are counted as having 0 width.
+/// Escaped less-than sign (`<` escaped as `<>`) is counted as having a width of 1 character.
+/// ```
+/// use libnewsboat::utils::strwidth_stfl;
+/// assert_eq!(strwidth_stfl("a"), 1);
+/// assert_eq!(strwidth_stfl("abc<tag>def"), 6);
+/// assert_eq!(strwidth_stfl("less-than: <>"), 12);
+/// assert_eq!(strwidth_stfl("ＡＢＣＤＥＦ"), 12);
+///```
 pub fn strwidth_stfl(rs_str: &str) -> usize {
-    let reduce = 3 * rs_str
-        .chars()
-        .zip(rs_str.chars().skip(1))
-        .filter(|&(c, next_c)| c == '<' && next_c != '>')
-        .count();
-
-    let width = strwidth(rs_str);
-    if width < reduce {
-        0
-    } else {
-        width - reduce
+    let mut s = &rs_str[..];
+    let mut width = 0;
+    loop {
+        if let Some(pos) = s.find('<') {
+            width += strwidth(&s[..pos]);
+            s = &s[pos..];
+            if let Some(endpos) = s.find('>') {
+                if endpos == 1 {
+                    // Found "<>" which stfl uses to encode a literal '<'
+                    width += strwidth("<");
+                }
+                s = &s[endpos + 1..];
+            } else {
+                // '<' without closing '>' so ignore rest of string
+                break;
+            }
+        } else {
+            width += strwidth(s);
+            break;
+        }
     }
+
+    width
 }
 
 /// Returns a longest substring fits to the given width.
@@ -517,7 +537,7 @@ pub fn make_title(rs_str: String) -> String {
      * http://domain.com/story/yy/mm/dd/title-with-dashes?a=b
      */
     // Strip out trailing slashes
-    let mut result = rs_str.trim_right_matches('/');
+    let mut result = rs_str.trim_end_matches('/');
 
     // get to the final part of the URI's path and
     // extract just the juicy part 'title-with-dashes?a=b'
@@ -531,10 +551,10 @@ pub fn make_title(rs_str: String) -> String {
 
     // Throw away common webpage suffixes: .html, .php, .aspx, .htm
     result = result
-        .trim_right_matches(".html")
-        .trim_right_matches(".php")
-        .trim_right_matches(".aspx")
-        .trim_right_matches(".htm");
+        .trim_end_matches(".html")
+        .trim_end_matches(".php")
+        .trim_end_matches(".aspx")
+        .trim_end_matches(".htm");
 
     // 'title with dashes'
     let result = result.replace('-', " ").replace('_', " ");
@@ -553,6 +573,34 @@ pub fn make_title(rs_str: String) -> String {
         None => String::new(),
         Some(f) => f,
     }
+}
+
+/// Run the given command interactively with inherited stdin and stdout/stderr
+/// ```
+/// use libnewsboat::utils::run_interactively;
+///
+/// let result = run_interactively("echo true", "test");
+/// assert_eq!(result, 0);
+///
+/// let result = run_interactively("exit 1", "test");
+/// assert_eq!(result, 1);
+/// ```
+pub fn run_interactively(command: &str, caller: &str) -> i32 {
+    log!(Level::Debug, &format!("{}: running `{}'", caller, command));
+    Command::new("sh")
+        .arg("-c")
+        .arg(command)
+        .status()
+        .map_err(|err| {
+            log!(
+                Level::Warn,
+                &format!("{}: Couldn't create child process: {}", caller, err)
+            )
+        })
+        .ok()
+        .and_then(|exit_status| exit_status.code())
+        // return -1 if command got killed by signal
+        .unwrap_or(-1)
 }
 
 /// Get the current working directory.
@@ -610,44 +658,6 @@ pub fn mkdir_parents<R: AsRef<Path>>(p: &R, mode: u32) -> io::Result<()> {
         .mode(mode)
         .recursive(true) // directories created with same security and permissions
         .create(p.as_ref())
-}
-
-/// Counts graphemes in a given string.
-///
-/// ```
-/// use libnewsboat::utils::graphemes_count;
-///
-/// assert_eq!(graphemes_count("D"), 1);
-/// // len() counts bytes, not characters, but all ASCII symbols are represented by one byte in
-/// // UTF-8, so len() returns 1 in this case
-/// assert_eq!("D".len(), 1);
-///
-/// // Here's a situation where a single grapheme is represented by multiple bytes
-/// assert_eq!(graphemes_count("Ж"), 1);
-/// assert_eq!("Ж".len(), 2);
-///
-/// assert_eq!(graphemes_count("📰"), 1);
-/// assert_eq!("📰".len(), 4);
-/// ```
-pub fn graphemes_count(input: &str) -> usize {
-    UnicodeSegmentation::graphemes(input, true).count()
-}
-
-/// Extracts up to `n` first graphemes from the given string.
-///
-/// ```
-/// use libnewsboat::utils::take_graphemes;
-///
-/// let input = "Привет!";
-/// assert_eq!(take_graphemes(input, 1), "П");
-/// assert_eq!(take_graphemes(input, 4), "Прив");
-/// assert_eq!(take_graphemes(input, 6), "Привет");
-/// assert_eq!(take_graphemes(input, 20), input);
-/// ```
-pub fn take_graphemes(input: &str, n: usize) -> String {
-    UnicodeSegmentation::graphemes(input, true)
-        .take(n)
-        .collect::<String>()
 }
 
 /// The tag and Git commit ID the program was built from, or a pre-defined value from config.h if
@@ -918,8 +928,11 @@ mod tests {
     #[test]
     fn t_strwidth_stfl() {
         assert_eq!(strwidth_stfl(""), 0);
-        assert_eq!(strwidth_stfl("x<hi>x"), 3);
-        assert_eq!(strwidth_stfl("x<>x"), 4);
+        assert_eq!(strwidth_stfl("x<hi>x"), 2);
+        assert_eq!(strwidth_stfl("x<longtag>x</>"), 2);
+        assert_eq!(strwidth_stfl("x<>x"), 3);
+        assert_eq!(strwidth_stfl("x<>y<>z"), 5);
+        assert_eq!(strwidth_stfl("x<>hi>x"), 6);
         assert_eq!(strwidth_stfl("\u{F91F}"), 2);
         assert_eq!(strwidth_stfl("\u{0007}"), 0);
         assert_eq!(strwidth_stfl("<a"), 0); // #415
@@ -927,14 +940,14 @@ mod tests {
 
     #[test]
     fn t_substr_with_width_given_string_empty() {
-        assert!(substr_with_width("", 0).is_empty());
-        assert!(substr_with_width("", 1).is_empty());
+        assert_eq!(substr_with_width("", 0), "");
+        assert_eq!(substr_with_width("", 1), "");
     }
 
     #[test]
     fn t_substr_with_width_max_width_zero() {
-        assert!(substr_with_width("world", 0).is_empty());
-        assert!(substr_with_width("", 0).is_empty());
+        assert_eq!(substr_with_width("world", 0), "");
+        assert_eq!(substr_with_width("", 0), "");
     }
 
     #[test]
@@ -968,14 +981,14 @@ mod tests {
 
     #[test]
     fn t_substr_with_width_stfl_given_string_empty() {
-        assert!(substr_with_width_stfl("", 0).is_empty());
-        assert!(substr_with_width_stfl("", 1).is_empty());
+        assert_eq!(substr_with_width_stfl("", 0), "");
+        assert_eq!(substr_with_width_stfl("", 1), "");
     }
 
     #[test]
     fn t_substr_with_width_stfl_max_width_zero() {
-        assert!(substr_with_width_stfl("world", 0).is_empty());
-        assert!(substr_with_width_stfl("", 0).is_empty());
+        assert_eq!(substr_with_width_stfl("world", 0), "");
+        assert_eq!(substr_with_width_stfl("", 0), "");
     }
 
     #[test]
@@ -1107,11 +1120,11 @@ mod tests {
 
         run_command("touch", filepath.to_str().unwrap());
 
-        // Busy-wait for 10 tries of 10 milliseconds each, waiting for `touch` to
+        // Busy-wait for 100 tries of 10 milliseconds each, waiting for `touch` to
         // create the file. Usually it happens quickly, and the loop exists on the
         // first try; but sometimes on CI it takes longer for `touch` to finish, so
         // we need a slightly longer wait.
-        for _ in 0..10 {
+        for _ in 0..100 {
             thread::sleep(time::Duration::from_millis(10));
 
             if filepath.exists() {

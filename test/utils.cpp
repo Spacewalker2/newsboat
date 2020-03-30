@@ -234,6 +234,24 @@ TEST_CASE("tokenize_nl() split a string into delimiters and fields", "[utils]")
 		REQUIRE(tokens[2] == "rst\nsecond\nth");
 		REQUIRE(tokens[4] == "rd");
 	}
+
+	SECTION("no non-delimiter text") {
+		SECTION("single newline") {
+			tokens = utils::tokenize_nl("\n");
+
+			REQUIRE(tokens.size() == 1);
+			REQUIRE(tokens[0] == "\n");
+		}
+
+		SECTION("multiple newlines") {
+			tokens = utils::tokenize_nl("\n\n\n");
+
+			REQUIRE(tokens.size() == 3);
+			REQUIRE(tokens[0] == "\n");
+			REQUIRE(tokens[1] == "\n");
+			REQUIRE(tokens[2] == "\n");
+		}
+	}
 }
 
 TEST_CASE(
@@ -434,11 +452,11 @@ TEST_CASE("run_command() executes the given command with a given argument",
 	struct stat sb;
 	int result = 0;
 
-	// Busy-wait for 10 tries of 10 milliseconds each, waiting for `touch` to
+	// Busy-wait for 100 tries of 10 milliseconds each, waiting for `touch` to
 	// create the file. Usually it happens quickly, and the loop exists on the
 	// first try; but sometimes on CI it takes longer for `touch` to finish, so
 	// we need a slightly longer wait.
-	int tries = 10;
+	int tries = 100;
 	while (tries-- > 0) {
 		::usleep(10 * 1000);
 
@@ -654,9 +672,15 @@ TEST_CASE("strwidth_stfl()", "[utils]")
 {
 	REQUIRE(utils::strwidth_stfl("") == 0);
 
-	REQUIRE(utils::strwidth_stfl("x<hi>x") == 3);
+	REQUIRE(utils::strwidth_stfl("x<hi>x") == 2);
 
-	REQUIRE(utils::strwidth_stfl("x<>x") == 4);
+	REQUIRE(utils::strwidth_stfl("x<longtag>x</>") == 2);
+
+	REQUIRE(utils::strwidth_stfl("x<>x") == 3);
+
+	REQUIRE(utils::strwidth_stfl("x<>hi>x") == 6);
+
+	REQUIRE(utils::strwidth_stfl("x<>y<>z") == 5);
 
 	REQUIRE(utils::strwidth_stfl(utils::wstr2str(L"\uF91F")) == 2);
 	REQUIRE(utils::strwidth_stfl("\07") == 0);
@@ -823,6 +847,18 @@ TEST_CASE("utils::make_title extracts possible title from URL", "[utils]")
 	}
 }
 
+TEST_CASE("run_interactively", "[utils]")
+{
+	SECTION("echo hello should return 0") {
+		int32_t result = utils::run_interactively("echo hello", "test");
+		REQUIRE(result == 0);
+	}
+	SECTION("exit 1 should return 1") {
+		int32_t result = utils::run_interactively("exit 1", "test");
+		REQUIRE(result == 1);
+	}
+}
+
 TEST_CASE("remove_soft_hyphens remove all U+00AD characters from a string",
 	"[utils]")
 {
@@ -871,13 +907,13 @@ TEST_CASE(
 		"A\u3042B");
 
 	SECTION("returns an empty string if the given string is empty") {
-		REQUIRE(utils::substr_with_width("", 0).empty());
-		REQUIRE(utils::substr_with_width("", 1).empty());
+		REQUIRE(utils::substr_with_width("", 0) == "");
+		REQUIRE(utils::substr_with_width("", 1) == "");
 	}
 
 	SECTION("returns an empty string if the given width is zero") {
-		REQUIRE(utils::substr_with_width("world", 0).empty());
-		REQUIRE(utils::substr_with_width("", 0).empty());
+		REQUIRE(utils::substr_with_width("world", 0) == "");
+		REQUIRE(utils::substr_with_width("", 0) == "");
 	}
 
 	SECTION("doesn't split single codepoint in two") {
@@ -924,13 +960,13 @@ TEST_CASE(
 		"A\u3042B");
 
 	SECTION("returns an empty string if the given string is empty") {
-		REQUIRE(utils::substr_with_width_stfl("", 0).empty());
-		REQUIRE(utils::substr_with_width_stfl("", 1).empty());
+		REQUIRE(utils::substr_with_width_stfl("", 0) == "");
+		REQUIRE(utils::substr_with_width_stfl("", 1) == "");
 	}
 
 	SECTION("returns an empty string if the given width is zero") {
-		REQUIRE(utils::substr_with_width_stfl("world", 0).empty());
-		REQUIRE(utils::substr_with_width_stfl("", 0).empty());
+		REQUIRE(utils::substr_with_width_stfl("world", 0) == "");
+		REQUIRE(utils::substr_with_width_stfl("", 0) == "");
 	}
 
 	SECTION("doesn't split single codepoint in two") {

@@ -37,7 +37,8 @@ Newsboat can be compiled.
 -->
 - GCC 4.9 or newer, or Clang 3.6 or newer
 - Stable [Rust](https://www.rust-lang.org/en-US/) and Cargo (Rust's package
-    manager) (1.26.0 or newer)
+    manager) (1.40.0 or newer; might work with older versions, but we don't
+    check that)
 - [STFL (version 0.21 or newer)](http://www.clifford.at/stfl/)
 - [SQLite3 (version 3.5 or newer)](http://www.sqlite.org/download.html)
 - [libcurl (version 7.21.6 or newer)](http://curl.haxx.se/download.html)
@@ -49,7 +50,7 @@ Newsboat can be compiled.
 - [pkg-config](http://pkg-config.freedesktop.org/wiki/)
 - [libxml2](http://xmlsoft.org/downloads.html)
 - [json-c (version 0.11 or newer)](https://github.com/json-c/json-c/wiki)
-- [Asciidoctor](https://asciidoctor.org/)
+- [Asciidoctor](https://asciidoctor.org/) (1.5.3 or newer)
 <!--
     UPDATE doc/newsboat.asciidoc IF YOU CHANGE THIS LIST
 -->
@@ -59,7 +60,7 @@ Developers will also need:
 - [`xtr`](https://github.com/woboq/tr) (can be installed with `cargo install
   xtr`)
 - [Coco/R for C++](http://www.ssw.uni-linz.ac.at/coco/), needed to re-generate
-- filter language parser using `regenerate-parser` target.
+    filter language parser using `regenerate-parser` target.
 
 Installation
 ------------
@@ -114,8 +115,8 @@ Support
 -------
 
 * Check out our
-  [documentation](https://newsboat.org/releases/2.18/docs/newsboat.html) and
-  [FAQ](https://newsboat.org/releases/2.18/docs/faq.html)
+  [documentation](https://newsboat.org/releases/2.19/docs/newsboat.html) and
+  [FAQ](https://newsboat.org/releases/2.19/docs/faq.html)
 * Bugs and whatnot should be reported to the
   [issue tracker](https://github.com/newsboat/newsboat/issues)
 * Drop us a line at

@@ -43,6 +43,11 @@ void PbView::run(bool auto_download)
 {
 	bool quit = false;
 
+	// Make sure curses is initialized
+	dllist_form.run(-3);
+	// Hide cursor using curses
+	curs_set(0);
+
 	set_dllist_keymap_hint();
 
 	do {
@@ -115,7 +120,7 @@ void PbView::run(bool auto_download)
 			continue;
 		}
 
-		Operation op = keys->get_operation(event, "podbeuter");
+		Operation op = keys->get_operation(event, "podboat");
 
 		if (dllist_form.get("msg").length() > 0) {
 			dllist_form.set("msg", "");
@@ -245,17 +250,17 @@ void PbView::set_bindings()
 {
 	if (keys) {
 		std::string upkey("** ");
-		upkey.append(keys->getkey(OP_SK_UP, "podbeuter"));
+		upkey.append(keys->getkey(OP_SK_UP, "podboat"));
 		std::string downkey("** ");
-		downkey.append(keys->getkey(OP_SK_DOWN, "podbeuter"));
+		downkey.append(keys->getkey(OP_SK_DOWN, "podboat"));
 		std::string pgupkey("** ");
-		pgupkey.append(keys->getkey(OP_SK_PGUP, "podbeuter"));
+		pgupkey.append(keys->getkey(OP_SK_PGUP, "podboat"));
 		std::string pgdownkey("** ");
-		pgdownkey.append(keys->getkey(OP_SK_PGDOWN, "podbeuter"));
+		pgdownkey.append(keys->getkey(OP_SK_PGDOWN, "podboat"));
 		std::string homekey("** ");
-		homekey.append(keys->getkey(OP_SK_HOME, "podbeuter"));
+		homekey.append(keys->getkey(OP_SK_HOME, "podboat"));
 		std::string endkey("** ");
-		endkey.append(keys->getkey(OP_SK_END, "podbeuter"));
+		endkey.append(keys->getkey(OP_SK_END, "podboat"));
 
 		dllist_form.set("bind_up", upkey);
 		dllist_form.set("bind_down", downkey);
@@ -340,7 +345,7 @@ std::string PbView::prepare_keymaphint(KeyMapHintEntry* hints)
 {
 	std::string keymap_hint;
 	for (int i = 0; hints[i].op != OP_NIL; ++i) {
-		keymap_hint.append(keys->getkey(hints[i].op, "podbeuter"));
+		keymap_hint.append(keys->getkey(hints[i].op, "podboat"));
 		keymap_hint.append(":");
 		keymap_hint.append(hints[i].text);
 		keymap_hint.append(" ");

@@ -268,6 +268,10 @@ std::vector<std::string> utils::tokenize_nl(const std::string& str,
 		for (i = 0; i < last_pos; ++i) {
 			tokens.push_back(std::string("\n"));
 		}
+	} else {
+		for (i = 0; i < str.length(); ++i) {
+			tokens.push_back(std::string("\n"));
+		}
 	}
 
 	while (std::string::npos != pos || std::string::npos != last_pos) {
@@ -900,22 +904,10 @@ std::string utils::make_title(const std::string& const_url)
 	return RustString(rs_make_title(const_url.c_str()));
 }
 
-int utils::run_interactively(const std::string& command,
+int32_t utils::run_interactively(const std::string& command,
 	const std::string& caller)
 {
-	LOG(Level::DEBUG, "%s: running `%s'", caller, command);
-
-	int status = ::system(command.c_str());
-
-	if (status == -1) {
-		LOG(Level::DEBUG,
-			"%s: couldn't create a child process",
-			caller);
-	} else if (status == 127) {
-		LOG(Level::DEBUG, "%s: couldn't run shell", caller);
-	}
-
-	return status;
+	return rs_run_interactively(command.c_str(), caller.c_str());
 }
 
 std::string utils::getcwd()
